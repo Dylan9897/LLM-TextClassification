@@ -1,0 +1,7 @@
+peft
+transformers
+torch
+datasets
+peft
+safetensors
+scikit-learn
