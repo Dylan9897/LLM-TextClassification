@@ -20,16 +20,16 @@ python main.py \
   --per_device_eval_batch_size 4 \
   --gradient_accumulation_steps 4 \
   --eval_strategy steps \
-  --eval_steps 50 \
+  --eval_steps 1000 \
   --save_strategy steps \
-  --save_steps 100 \
+  --save_steps 2000 \
   --save_total_limit 2 \
   --learning_rate 2e-5 \
   --weight_decay 0.01 \
   --adam_beta2 0.999 \
   --warmup_ratio 0.1 \
   --lr_scheduler_type cosine \
-  --logging_steps 10 \
+  --logging_steps 100 \
   --report_to none \
   --model_max_length 512 \
   --lazy_preprocess True \

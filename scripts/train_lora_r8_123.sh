@@ -1,7 +1,7 @@
 #!/bin/bash
 export CUDA_DEVICE_MAX_CONNECTIONS=1
 
-MODEL="ckpt/Llama-3___2-1B-Instruct"
+MODEL="ckpt/llama2-7b-chat"
 DATA="data/datasets/r8/data"
 SEED=123
 OUTPUT_DIR="output_lora_r8_seed123"
@@ -16,21 +16,21 @@ python main.py \
   --fp16 True \
   --output_dir $OUTPUT_DIR \
   --num_train_epochs 8 \
-  --per_device_train_batch_size 8 \
-  --per_device_eval_batch_size 8 \
+  --per_device_train_batch_size 4 \
+  --per_device_eval_batch_size 4 \
   --gradient_accumulation_steps 2 \
   --eval_strategy steps \
-  --eval_steps 100 \
+  --eval_steps 1000 \
   --save_strategy steps \
-  --save_steps 200 \
-  --save_total_limit 2 \
+  --save_steps 2000 \
+  --save_total_limit 1 \
   --learning_rate 5e-4 \
   --weight_decay 0.01 \
   --adam_beta2 0.999 \
   --warmup_ratio 0.1 \
   --lr_scheduler_type cosine \
-  --logging_steps 25 \
-  --report_to tensorboard \
+  --logging_steps 100 \
+  --report_to none \
   --model_max_length 512 \
   --lazy_preprocess True \
   --gradient_checkpointing \
