@@ -1,7 +1,7 @@
 #!/bin/bash
 export CUDA_DEVICE_MAX_CONNECTIONS=1
 
-MODEL="ckpt/Llama-3___2-1B-Instruct"
+MODEL="ckpt/llama2-7b-chat"
 DATA="data/datasets/r8/data"
 SEED=123
 OUTPUT_DIR="output_full_r8_seed123"
