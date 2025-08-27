@@ -74,13 +74,19 @@ class DatasetLoader:
         for split_name, split_data in dataset.items():
             print(f"  {split_name}: {len(split_data):,} examples")
         
-        # 应用 max_example 限制（如果设置了的话）
-        if hasattr(self.data_args, 'max_example') and self.data_args.max_example > 0:
-            print(f"Limiting dataset to {self.data_args.max_example} examples per split for testing...")
+        # 应用样本数量限制（如果设置了的话）
+        max_samples = 0
+        if hasattr(self.data_args, 'max_samples') and self.data_args.max_samples > 0:
+            max_samples = self.data_args.max_samples
+        elif hasattr(self.data_args, 'max_example') and self.data_args.max_example > 0:
+            max_samples = self.data_args.max_example
+        
+        if max_samples > 0:
+            print(f"Limiting dataset to {max_samples} examples per split for testing...")
             limited_dataset = {}
             for split_name, split_data in dataset.items():
-                if len(split_data) > self.data_args.max_example:
-                    limited_dataset[split_name] = split_data.select(range(self.data_args.max_example))
+                if len(split_data) > max_samples:
+                    limited_dataset[split_name] = split_data.select(range(max_samples))
                 else:
                     limited_dataset[split_name] = split_data
             dataset = limited_dataset
@@ -90,7 +96,7 @@ class DatasetLoader:
             for split_name, split_data in dataset.items():
                 print(f"  {split_name}: {len(split_data):,} examples")
         else:
-            print("Using full dataset for training (no max_example limit)")
+            print("Using full dataset for training (no sample limit)")
         
         # 处理验证集和测试集
         if "train" in dataset:
