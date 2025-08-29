@@ -5,6 +5,3 @@ datasets
 peft
 safetensors
 scikit-learn
-deepspeed
-accelerate
-pandas
