@@ -7,6 +7,7 @@
 
 import os
 import sys
+import json
 from pathlib import Path
 
 # 添加项目根目录到Python路径
@@ -24,7 +25,21 @@ from src.training.trainer import BestModelTrainer
 from src.evaluation.test_evaluator import TestEvaluator
 from src.utils.helpers import set_seed, detect_dataset_name
 from src.config.dataset_config import get_num_labels
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 
+def compute_metrics(eval_pred):
+    logits, labels = eval_pred
+    preds = logits.argmax(axis=-1)
+    acc = accuracy_score(labels, preds)
+    f1 = f1_score(labels, preds, average="macro")
+    precision = precision_score(labels, preds, average="macro")
+    recall = recall_score(labels, preds, average="macro")
+    return {
+        "accuracy": acc,
+        "f1": f1,
+        "precision": precision,
+        "recall": recall
+    }
 
 def train(verbose=False):
     """主训练函数"""
@@ -71,6 +86,10 @@ def train(verbose=False):
     
     # 加载和预处理数据
     processed_data = dataset_loader.load_and_split_data()
+
+    # print(processed_data.keys())
+    # s = input("5454")
+
     
     # 创建trainer
     trainer = BestModelTrainer(
@@ -78,6 +97,7 @@ def train(verbose=False):
         args=training_args,
         train_dataset=processed_data["train"],
         eval_dataset=processed_data["valid"],
+        compute_metrics=compute_metrics  # 关键
     )
     
     # 训练模型
@@ -101,9 +121,25 @@ def train(verbose=False):
         traceback.print_exc()
         print("Attempting to evaluate with available checkpoints...")
     
+    if not training_args.use_lora:
     # 评估测试集
-    test_evaluator = TestEvaluator(model, tokenizer, dataset_loader, training_args.output_dir, model_args.model_name_or_path)
-    test_evaluator.evaluate()
+        test_evaluator = TestEvaluator(model, tokenizer, dataset_loader, training_args.output_dir, model_args.model_name_or_path)
+        test_evaluator.evaluate()
+
+    else:
+        if "test" in processed_data:
+            print("\n" + "="*60)
+            print("Evaluating on test set using trainer...")
+            test_results = trainer.evaluate(eval_dataset=processed_data["test"])
+            print("Test set results:", test_results)
+            # 保存为json
+            os.makedirs(training_args.output_dir, exist_ok=True)
+            output_json = os.path.join(training_args.output_dir, "test_results.json")
+            with open(output_json, "w", encoding="utf-8") as f:
+                json.dump(test_results, f, ensure_ascii=False, indent=2)
+            print(f"Test results saved to {output_json}")
+        else:
+            print("No test set found in processed_data.")
 
 
 if __name__ == "__main__":

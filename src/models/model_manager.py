@@ -7,7 +7,7 @@
 import torch
 import torch.nn as nn
 import transformers
-from transformers import AutoModelForSequenceClassification
+from transformers import AutoModelForSequenceClassification,AutoModelForCausalLM
 from peft import LoraConfig, get_peft_model
 
 
@@ -71,12 +71,17 @@ class ModelManager:
             is_training=self.model_args.is_training
         )
         config.use_cache = False
-        
-        # 创建模型
+        # if not self.training_args.use_lora:
+            # 创建模型
         model = AutoModelForSequenceClassification.from_pretrained(
             self.model_args.model_name_or_path, 
             num_labels=self.num_labels
         )
+        # else:
+        #     model = AutoModelForCausalLM.from_pretrained(
+        #         self.model_args.model_name_or_path,
+        #         config=config
+        #     )
         
         # 设置padding token ID，确保在词汇表范围内
         if hasattr(model.config, 'vocab_size'):
@@ -85,7 +90,7 @@ class ModelManager:
         else:
             # 默认值
             model.config.pad_token_id = 0
-        
+    
         # 配置训练模式
         if not self.training_args.use_lora:
             self._setup_full_finetuning(model)
@@ -98,24 +103,13 @@ class ModelManager:
         
         return model
     
-    def _setup_full_finetuning(self, model):
-        """设置全参微调"""
-        print("Full parameter fine-tuning mode enabled")
-        for param in model.parameters():
-            param.requires_grad = True
-        print(f"Total trainable parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad):,}")
-    
-    def _setup_lora_finetuning(self, model):
-        """设置LoRA微调"""
+    def _setup_lora_finetuning(self, model,create=False):
         print("Setting up LoRA fine-tuning...")
-        
-        # 首先冻结所有参数
+
         for param in model.parameters():
             param.requires_grad = False
-        
-        # 为Llama模型设置正确的target_modules
+
         target_modules = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
-        
         lora_config = LoraConfig(
             r=self.lora_args.lora_r,
             lora_alpha=self.lora_args.lora_alpha,
@@ -123,24 +117,44 @@ class ModelManager:
             lora_dropout=self.lora_args.lora_dropout,
             bias=self.lora_args.lora_bias,
             task_type="SEQ_CLS",
-            modules_to_save=None  # 不保存原始模块
+            modules_to_save=target_modules+["socre"]
         )
-        
+
+       
         model = get_peft_model(model, lora_config)
         model.print_trainable_parameters()
-        
-        # 替换分类头为自定义分类层
-        hidden_size = model.config.hidden_size
-        model.classifier = CustomClassifier(hidden_size, self.num_labels)
-        
+        # for name, module in model.named_modules():
+        #     if "lm_head" in name:
+        #         print(name, module)
+        # s = input()
+
+        if create:
+            # 获取分类头的输入输出维度
+            if hasattr(model, 'score') and hasattr(model.score, 'modules_to_save'):
+                # 获取原始Linear层的in/out特征数
+                old_linear = model.score.modules_to_save["default"]
+                in_features = old_linear.in_features
+                out_features = old_linear.out_features
+                # 替换为自定义分类头
+                model.score.original_module = CustomClassifier(in_features, out_features)
+                model.score.modules_to_save["default"] = CustomClassifier(in_features, out_features)
+                print("Replaced model.score.modules_to_save['default'] with CustomClassifier.")
+
+            else:
+                print("Warning: model.score.modules_to_save not found, fallback to direct replacement.")
+                # 兜底方案
+                hidden_size = model.config.hidden_size if hasattr(model.config, "hidden_size") else model.config.hidden_dim
+                model.score = CustomClassifier(hidden_size, self.num_labels)
+      
         # 只设置LoRA参数和分类层参数为可训练
         for name, param in model.named_parameters():
-            if any(keyword in name for keyword in ['lora_', 'classifier']):
+            if any(keyword in name for keyword in ['lora_', 'score']):
                 param.requires_grad = True
                 print(f"Setting {name} as trainable")
             else:
                 param.requires_grad = False
-        
+
+        print(model)
         # 打印可训练参数统计
         trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
         total_params = sum(p.numel() for p in model.parameters())
@@ -148,5 +162,5 @@ class ModelManager:
         print(f"  Trainable parameters: {trainable_params:,}")
         print(f"  Total parameters: {total_params:,}")
         print(f"  Trainable ratio: {trainable_params/total_params*100:.2f}%")
-        
+
         return model

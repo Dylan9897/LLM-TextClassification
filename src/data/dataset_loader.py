@@ -68,7 +68,8 @@ class DatasetLoader:
         """加载数据集并根据需要切分验证集"""
         # 加载原始数据集
         dataset = self._load_raw_dataset()
-        
+     
+
         # 显示原始数据集信息
         print(f"Original dataset splits:")
         for split_name, split_data in dataset.items():
@@ -215,8 +216,9 @@ class DatasetLoader:
         
         print(f"Training set size: {len(train_dataset)}")
         print(f"Validation set size: {len(valid_dataset)}")
+        print(f"Test set size: {len(dataset["test"])}")
         
-        return {"train": train_dataset, "valid": valid_dataset}
+        return {"train": train_dataset, "valid": valid_dataset,"test": dataset["test"]}
     
     def _preprocess_dataset(self, dataset):
         """预处理数据集"""
